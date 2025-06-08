@@ -5,7 +5,7 @@ import { trpc } from "@/trpc/client";
 export const PageClient = () => {
 
     const [data] = trpc.hello.useSuspenseQuery({
-        text: "Antonio22",
+        text: "Antonio2",
     });
 
   return (
