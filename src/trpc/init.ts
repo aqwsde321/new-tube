@@ -1,10 +1,11 @@
-import { db } from '@/db';
-import { eq } from 'drizzle-orm';
-import { users } from '@/db/schema';
-import { auth } from '@clerk/nextjs/server';
-import { initTRPC, TRPCError } from '@trpc/server';
-import { cache } from 'react';
-import superjson from 'superjson';
+import { db } from "@/db";
+import { eq } from "drizzle-orm";
+import { users } from "@/db/schema";
+import { auth } from "@clerk/nextjs/server";
+import { initTRPC, TRPCError } from "@trpc/server";
+import { cache } from "react";
+import superjson from "superjson";
+import { ratelimit } from "@/lib/ratelimit";
 
 export const createTRPCContext = cache(async () => {
   /**
@@ -12,7 +13,7 @@ export const createTRPCContext = cache(async () => {
    */
   // 여기서 db 연결하거나 쿼리 및 다른 backend api 사용x ( currentUser 등 )
   const { userId } = await auth();
-  
+
   return { clerkUserId: userId };
 });
 
@@ -32,17 +33,35 @@ const t = initTRPC.context<Context>().create({
 export const createTRPCRouter = t.router;
 export const createCallerFactory = t.createCallerFactory;
 export const baseProcedure = t.procedure;
-export const protectedProcedure = t.procedure.use(async function isAuthed(opts) {
+
+export const protectedProcedure = t.procedure.use(async function isAuthed(
+  opts
+) {
   const { ctx } = opts;
 
   if (!ctx.clerkUserId) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "You must be logged in to access this resource." });
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "You must be logged in to access this resource.",
+    });
   }
 
-  const [user] = await db.select().from(users).where(eq(users.clerkId, ctx.clerkUserId)).limit(1);
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.clerkId, ctx.clerkUserId))
+    .limit(1);
 
   if (!user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "User not found." });
+  }
+
+  const { success } = await ratelimit.limit(user.id);
+  if (!success) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: "You have exceeded the rate limit. Please try again later.",
+    });
   }
 
   return opts.next({
@@ -52,5 +71,4 @@ export const protectedProcedure = t.procedure.use(async function isAuthed(opts) 
       user, // Add the user to the context
     },
   });
-  
-})
+});
