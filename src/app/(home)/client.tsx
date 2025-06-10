@@ -4,14 +4,12 @@ import { trpc } from "@/trpc/client";
 
 export const PageClient = () => {
 
-    const [data] = trpc.hello.useSuspenseQuery({
-        text: "Antonio2",
-    });
+    const [data] = trpc.categories.getMany.useSuspenseQuery();
 
   return (
     <div>
       <p className="text-xl font-semibold tracking-tight">
-        Client component says: {data.greeting}
+        {JSON.stringify(data)}
       </p>
     </div>
   );
