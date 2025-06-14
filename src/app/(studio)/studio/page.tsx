@@ -1,17 +1,17 @@
+import { DEFAULT_LIMIT } from "@/constants";
+import { StudioView } from "@/modules/studio/ui/view/studio-view";
+import { HydrateClient, trpc } from "@/trpc/server";
 
 
-export const dynamic = "force-dynamic"; // Disable static rendering for this page
-interface PageProps {
-  searchParams: Promise<{
-    categoryId?: string;
-  }>
-};
-
-const Page = async ({ searchParams }: PageProps) => {
-
+const Page = async () => {
+  void trpc.studio.getMany.prefetchInfinite({
+    limit: DEFAULT_LIMIT,
+  });
 
   return (
-    <div>studio</div>
+    <HydrateClient>
+      <StudioView />
+    </HydrateClient>
   );
 };
 
